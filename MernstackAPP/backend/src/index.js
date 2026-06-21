@@ -18,8 +18,10 @@ const __dirname = path.resolve();
 
 app.use(express.json());
 app.use(cookieParser());
+
+// UPDATED: More flexible CORS for production
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: process.env.NODE_ENV === "development" ? "http://localhost:5173" : true,
   credentials: true
 }));
 
@@ -27,7 +29,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  // Fixed the path here to go up one level to find frontend/dist
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   app.get("{*path}", (req, res) => {
