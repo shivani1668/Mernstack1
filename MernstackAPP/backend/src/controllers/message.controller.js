@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
+import Story from "../models/story.model.js";
 
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
@@ -65,6 +66,62 @@ export const sendMessage = async (req, res) => {
     res.status(201).json(newMessage);
   } catch (error) {
     console.log("Error in sendMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteMessages = async (req, res) => {
+  try {
+    const { id: userToChatId } = req.params;
+    const myId = req.user._id;
+
+    await Message.deleteMany({
+      $or: [
+        { senderId: myId, receiverId: userToChatId },
+        { senderId: userToChatId, receiverId: myId },
+      ],
+    });
+
+    res.status(200).json({ message: "Messages deleted successfully" });
+  } catch (error) {
+    console.log("Error in deleteMessages controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getStories = async (req, res) => {
+  try {
+    const stories = await Story.find().populate("owner", "fullName profilePic");
+    res.status(200).json(stories);
+  } catch (error) {
+    console.log("Error in getStories controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const postStory = async (req, res) => {
+  try {
+    const { content, image } = req.body;
+    const ownerId = req.user._id;
+
+    let imageUrl;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image);
+      imageUrl = uploadResponse.secure_url;
+    }
+
+    const newStory = new Story({
+      owner: ownerId,
+      content,
+      image: imageUrl,
+    });
+
+    await newStory.save();
+
+    const populatedStory = await newStory.populate("owner", "fullName profilePic");
+    res.status(201).json(populatedStory);
+  } catch (error) {
+    console.log("Error in postStory controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
