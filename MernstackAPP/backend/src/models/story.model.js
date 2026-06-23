@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const storySchema = new mongoose.Schema(
@@ -9,19 +8,20 @@ const storySchema = new mongoose.Schema(
       required: true,
     },
     content: {
-      type: String, // For quotes or links
+      type: String,
     },
     image: {
-      type: String, // Cloudinary URL
+      type: String,
     },
     expiresAt: {
       type: Date,
-      default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      index: { expires: 0 }, // Auto-delete from MongoDB
+      default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),
+      index: { expires: 0 },
     },
   },
   { timestamps: true }
 );
 
 const Story = mongoose.model("Story", storySchema);
+
 export default Story;
