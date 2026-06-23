@@ -13,7 +13,7 @@ const Avatar = ({ user, size = "size-12", border = false, hasStory = false }) =>
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = "none";
-              e.target.nextSibling.style.display = "flex";
+              e.target.nextSibling.style.display = "flex";i
             }}
           />
         ) : null}
