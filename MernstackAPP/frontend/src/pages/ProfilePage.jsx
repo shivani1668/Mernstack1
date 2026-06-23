@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { Camera, Mail, User, Trash2 } from "lucide-react";
+import Avatar from "../components/Avatar";
 
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile, deleteAccount, isDeletingAccount } = useAuthStore();
@@ -40,11 +41,8 @@ const ProfilePage = () => {
 
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <img
-                src={selectedImg || authUser.profilePic || "/avatar.png"}
-                alt="Profile"
-                className="size-32 rounded-full object-cover border-4 "
-              />
+              <Avatar user={selectedImg ? { profilePic: selectedImg } : authUser} size="size-32" border={true} />
+
               <label
                 htmlFor="avatar-upload"
                 className={`
