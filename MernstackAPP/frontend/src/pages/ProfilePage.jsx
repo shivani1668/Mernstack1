@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
-import { Camera, Mail, User } from "lucide-react";
+import { Camera, Mail, User, Trash2 } from "lucide-react";
 
 const ProfilePage = () => {
-  const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
+  const { authUser, isUpdatingProfile, updateProfile, deleteAccount, isDeletingAccount } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
 
   const handleImageUpload = async (e) => {
@@ -19,6 +19,12 @@ const ProfilePage = () => {
       setSelectedImg(base64Image);
       await updateProfile({ profilePic: base64Image });
     };
+  };
+
+  const handleDeleteAccount = () => {
+    if (window.confirm("Are you sure you want to delete your account? This action is permanent and will delete all your messages and stories.")) {
+      deleteAccount();
+    }
   };
 
   return (
@@ -95,6 +101,22 @@ const ProfilePage = () => {
                 <span className="text-green-500">Active</span>
               </div>
             </div>
+          </div>
+
+          {/* Delete Account Section */}
+          <div className="mt-6 pt-6 border-t border-zinc-700">
+            <button
+              onClick={handleDeleteAccount}
+              disabled={isDeletingAccount}
+              className="btn btn-error btn-outline w-full gap-2"
+            >
+              {isDeletingAccount ? (
+                <span className="loading loading-spinner loading-xs"></span>
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Delete Account Permanently
+            </button>
           </div>
         </div>
       </div>
