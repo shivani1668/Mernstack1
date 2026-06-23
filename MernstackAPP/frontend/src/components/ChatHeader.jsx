@@ -1,10 +1,16 @@
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useChatStore } from "../stores/useChatStore";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, deleteMessages } = useChatStore();
   const { onlineUsers } = useAuthStore();
+
+  const handleClearChat = () => {
+    if (window.confirm(`Are you sure you want to clear your chat history with ${selectedUser.fullName}?`)) {
+      deleteMessages(selectedUser._id);
+    }
+  };
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -26,10 +32,24 @@ const ChatHeader = () => {
           </div>
         </div>
 
-        {/* Close button */}
-        <button onClick={() => setSelectedUser(null)}>
-          <X />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Clear Chat Button */}
+          <button
+            onClick={handleClearChat}
+            className="btn btn-ghost btn-circle btn-sm text-error"
+            title="Clear Chat"
+          >
+            <Trash2 size={18} />
+          </button>
+
+          {/* Close button */}
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="btn btn-ghost btn-circle btn-sm"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
     </div>
   );
