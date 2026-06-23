@@ -18,10 +18,8 @@ const __dirname = path.resolve();
 
 app.use(express.json());
 app.use(cookieParser());
-
-// UPDATED: More flexible CORS for production
 app.use(cors({
-  origin: process.env.NODE_ENV === "development" ? "http://localhost:5173" : true,
+  origin: "http://localhost:5173",
   credentials: true
 }));
 
@@ -29,10 +27,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  app.use(express.static(path.join(__dirname, "frontend/dist")));
 
-  app.get("{*path}", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "../frontend", "dist", "index.html"));
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
   });
 }
 
