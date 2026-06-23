@@ -6,6 +6,7 @@ import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users, Plus } from "lucide-react";
 import StoryModal from "./StoryModal";
 import PostStoryModal from "./PostStoryModal";
+import Avatar from "./Avatar";
 
 const Sidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
@@ -86,20 +87,12 @@ const Sidebar = () => {
                 className="relative mx-auto lg:mx-0"
                 onClick={(e) => hasStory && handleStoryClick(user._id, e)}
               >
-                <div className={`rounded-full p-0.5 ${hasStory ? "ring-2 ring-primary animate-pulse cursor-pointer" : ""}`}>
-                  <img
-                    src={user.profilePic || "/avatar.png"}
-                    alt={user.fullName}
-                    className="size-12 object-cover rounded-full"
-                    onError={(e) => {
-                      e.target.src = "/avatar.png";
-                    }}
-                  />
-                </div>
+                <Avatar user={user} hasStory={hasStory} />
+
                 {onlineUsers.includes(user._id) && (
                   <span
                     className="absolute bottom-0 right-0 size-3 bg-green-500
-                    border-2 border-zinc-900 rounded-full"
+                    border-2 border-zinc-900 rounded-full z-10"
                   />
                 )}
               </div>
