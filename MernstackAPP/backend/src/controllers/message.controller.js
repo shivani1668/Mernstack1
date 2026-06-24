@@ -9,10 +9,10 @@ export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
 
-    // Find all users except the logged-in one
+    // 1. Find all users except the logged-in one
     const users = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
 
-    // For each user, find their last message with the logged-in user
+    // 2. Map through users and find the actual latest message timestamp
     const usersWithLastMessage = await Promise.all(
       users.map(async (user) => {
         const lastMessage = await Message.findOne({
@@ -29,8 +29,12 @@ export const getUsersForSidebar = async (req, res) => {
       })
     );
 
-    // Sort users by the date of the last message (newest first)
-    usersWithLastMessage.sort((a, b) => b.lastMessageDate - a.lastMessageDate);
+    // 3. Sort by the actual timestamp (Newest on top)
+    usersWithLastMessage.sort((a, b) => {
+        const dateA = new Date(a.lastMessageDate).getTime();
+        const dateB = new Date(b.lastMessageDate).getTime();
+        return dateB - dateA;
+    });
 
     res.status(200).json(usersWithLastMessage);
   } catch (error) {
