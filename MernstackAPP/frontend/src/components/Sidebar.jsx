@@ -29,9 +29,10 @@ const Sidebar = () => {
   if (isUsersLoading) return <SidebarSkeleton />;
 
   const handleStoryClick = (userId, e) => {
-    e.stopPropagation();
+    // Only stop propagation to prevent opening the chat if there IS a story
     const userStory = stories.find((s) => s.owner._id === userId);
     if (userStory) {
+      e.stopPropagation();
       setSelectedStory(userStory);
     }
   };
@@ -83,8 +84,9 @@ const Sidebar = () => {
                 ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
               `}
             >
+              {/* Clicking the Avatar opens the story */}
               <div
-                className="relative mx-auto lg:mx-0"
+                className="relative mx-auto lg:mx-0 flex-shrink-0"
                 onClick={(e) => hasStory && handleStoryClick(user._id, e)}
               >
                 <Avatar user={user} hasStory={hasStory} />
@@ -97,7 +99,8 @@ const Sidebar = () => {
                 )}
               </div>
 
-              <div className="hidden lg:block text-left min-w-0">
+              {/* Clicking this info area opens the chat */}
+              <div className="hidden lg:block text-left min-w-0 flex-1">
                 <div className="font-medium truncate">{user.fullName}</div>
                 <div className="text-sm text-zinc-400">
                   {onlineUsers.includes(user._id) ? "Online" : "Offline"}
