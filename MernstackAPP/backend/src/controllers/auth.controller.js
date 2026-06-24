@@ -4,6 +4,8 @@ import Message from "../models/message.model.js";
 import Story from "../models/story.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -11,29 +13,18 @@ export const signup = async (req, res) => {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
-
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
-
     const user = await User.findOne({ email });
-
     if (user) return res.status(400).json({ message: "Email already exists" });
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      fullName,
-      email,
-      password: hashedPassword,
-    });
+    const newUser = new User({ fullName, email, password: hashedPassword });
 
     if (newUser) {
-      // generate jwt token here
       generateToken(newUser._id, res);
       await newUser.save();
-
       res.status(201).json({
         _id: newUser._id,
         fullName: newUser.fullName,
@@ -53,18 +44,10 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
+    if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid credentials" });
     generateToken(user._id, res);
-
     res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
@@ -91,18 +74,9 @@ export const updateProfile = async (req, res) => {
   try {
     const { profilePic } = req.body;
     const userId = req.user._id;
-
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
-    }
-
+    if (!profilePic) return res.status(400).json({ message: "Profile pic is required" });
     const uploadResponse = await cloudinary.uploader.upload(profilePic);
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
-    );
-
+    const updatedUser = await User.findByIdAndUpdate(userId, { profilePic: uploadResponse.secure_url }, { new: true });
     res.status(200).json(updatedUser);
   } catch (error) {
     console.log("error in update profile:", error);
@@ -122,18 +96,9 @@ export const checkAuth = (req, res) => {
 export const deleteAccount = async (req, res) => {
   try {
     const userId = req.user._id;
-
-    // Delete user's messages
-    await Message.deleteMany({
-      $or: [{ senderId: userId }, { receiverId: userId }],
-    });
-
-    // Delete user's stories
+    await Message.deleteMany({ $or: [{ senderId: userId }, { receiverId: userId }] });
     await Story.deleteMany({ owner: userId });
-
-    // Delete user
     await User.findByIdAndDelete(userId);
-
     res.cookie("jwt", "", { maxAge: 0 });
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
@@ -146,26 +111,60 @@ export const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user._id;
-
     const user = await User.findById(userId);
     const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: "Current password is incorrect" });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: "New password must be at least 6 characters" });
-    }
-
+    if (!isPasswordCorrect) return res.status(400).json({ message: "Current password is incorrect" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "New password must be at least 6 characters" });
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
-
     res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
     console.log("Error in updatePassword controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000;
+    await user.save();
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    const mailOptions = {
+      to: user.email,
+      from: process.env.EMAIL_USER,
+      subject: "Password Reset Request",
+      text: `You requested a password reset. Click here: ${resetUrl}`,
+    };
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: "Reset email sent" });
+  } catch (error) {
+    res.status(500).json({ message: "Error sending email" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  try {
+    const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+    if (!user) return res.status(400).json({ message: "Token invalid or expired" });
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
