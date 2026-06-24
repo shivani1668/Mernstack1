@@ -5,7 +5,6 @@ import Story from "../models/story.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -123,11 +122,9 @@ export const updatePassword = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
-  console.log("Forgot password request for:", email);
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      console.log("User not found for email:", email);
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -135,38 +132,34 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
-    console.log("Reset token generated and saved for user.");
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS?.replace(/\s/g, ""),
-      },
-      debug: true, // show debug output
-      logger: true, // log information in console
-    });
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-    console.log("Generated
 
-     reset URL:", resetUrl);
+    // Using Resend API via fetch (Node 18+) to bypass SMTP blocks
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Chatty App <onboarding@resend.dev>",
+        to: user.email,
+        subject: "Password Reset Request",
+        html: `<p>You requested a password reset. Click here to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      }),
+    });
 
-    const mailOptions = {
-      to: user.email,
-      from: process.env.EMAIL_USER,
-      subject: "Password Reset Request",
-      html: `<p>You requested a password reset. Click here to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
-    };
-
-    console.log("Attempting to send email with debug logs enabled...");
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully! Message ID:", info.messageId);
-
-    res.status(200).json({ message: "Reset email sent" });
+    if (response.ok) {
+      res.status(200).json({ message: "Reset email sent" });
+    } else {
+      const errorData = await response.json();
+      console.error("Resend API Error:", errorData);
+      res.status(500).json({ message: "Failed to send email" });
+    }
   } catch (error) {
-    console.error("Forgot Password Error Detail:", error);
-    res.status(500).json({ message: "Error sending email. Please check server logs." });
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
