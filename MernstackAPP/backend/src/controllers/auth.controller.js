@@ -75,6 +75,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(userId, { profilePic: uploadResponse.secure_url }, { new: true });
     res.status(200).json(updatedUser);
   } catch (error) {
+    console.log("error in update profile:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -83,6 +84,7 @@ export const checkAuth = (req, res) => {
   try {
     res.status(200).json(req.user);
   } catch (error) {
+    console.log("Error in checkAuth controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -96,6 +98,7 @@ export const deleteAccount = async (req, res) => {
     res.cookie("jwt", "", { maxAge: 0 });
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
+    console.log("Error in deleteAccount controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -107,39 +110,59 @@ export const updatePassword = async (req, res) => {
     const user = await User.findById(userId);
     const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordCorrect) return res.status(400).json({ message: "Current password is incorrect" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "New password must be at least 6 characters" });
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
     res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
+    console.log("Error in updatePassword controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
+  console.log("Forgot password request for:", email);
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      console.log("User not found for email:", email);
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const resetToken = crypto.randomBytes(20).toString("hex");
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
+    console.log("Reset token generated and saved for user.");
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS.replace(/\s/g, "") },
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS?.replace(/\s/g, ""),
+      },
     });
+
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    console.log("Generated reset URL:", resetUrl);
+
     const mailOptions = {
       to: user.email,
       from: process.env.EMAIL_USER,
       subject: "Password Reset Request",
-      html: `<p>You requested a password reset. Click here: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      html: `<p>You requested a password reset. Click here to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
     };
+
+    console.log("Attempting to send email...");
     await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully!");
+
     res.status(200).json({ message: "Reset email sent" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending email" });
+    console.error("Forgot Password Error Detail:", error);
+    res.status(500).json({ message: "Error sending email. Please check server logs." });
   }
 };
 
