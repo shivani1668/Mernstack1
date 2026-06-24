@@ -138,13 +138,18 @@ export const forgotPassword = async (req, res) => {
     console.log("Reset token generated and saved for user.");
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS?.replace(/\s/g, ""),
       },
-      debug: true, // show debug output
-      logger: true, // log information in console
+      tls: {
+        rejectUnauthorized: false
+      },
+      debug: true,
+      logger: true,
     });
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
